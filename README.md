@@ -2,7 +2,8 @@
 A Firefox extension for a better Bateworld VidChat experience
 
 ## Features
-A like/dislike system so you can highlight your favorite/least favorite people
+1. A like/dislike system so you can highlight your favorite/least favorite people
+2. A rotate button for those users who are upside-down
 
 ## How to install
 - Download & unzip, or clone this repo
@@ -23,7 +24,6 @@ I will not offer any support for this
 You can, however, open a PR if you have fixes or improvements
 
 ### Future plans
-* A rotate video function for chatters who are always upside down for some reason
 * I could fix the DOM manipulation to allow it to work on the vidchat non-standalone page
   * But honestly, who thought it was ok to have something nested 2 iFrames deep, and who wants an *even* smaller viewport?
 * Update likes from a user's profile page or your friends list
