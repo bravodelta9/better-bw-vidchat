@@ -1,8 +1,10 @@
 // Just some constants
 const LS_PREFIX = "BW-EXT:";
 const CTRL_CLASS = 'bw-ext-controls';
-const USER_LIST_ID = 'userListMain';
+const USER_LIST_ID = 'userList';
 const USER_ITEM_CLASS = 'online-user-item';
+const CHAT_WINDOW_CLASS = 'jsPanel';
+const CHAT_HEADER_CLASS = 'jsPanel-title';
 const IFRAME_ID = 'iframeChat';
 const VAL_POS = 'Y';
 const VAL_NEG = 'N';
@@ -13,7 +15,7 @@ const DEBUGGING_ON = false;
 let iFrameGlobal;
 
 // Function to handle mutations
-function handleMutations(mutations) {
+function handleUserListMutations(mutations) {
   mutations.forEach((mutation) => {
     // Check if the mutation involves changes to the child nodes
     if (mutation.type === 'childList') {
@@ -34,8 +36,20 @@ function handleMutations(mutations) {
   });
 };
 
+function handleChatboxMutations(mutations) {
+  mutations.forEach((mutation) => {
+    if (mutation.type === 'childList') {
+      mutation.addedNodes.forEach((addedNode) => {
+        if (addedNode.classList && addedNode.classList.contains(CHAT_WINDOW_CLASS)) {
+          maybeAddRotateButton(addedNode);
+        }
+      });
+    }
+  });
+}
+
 // Function to set up MutationObserver for the iframe
-function setupMutationObserver(iframeChat) {
+function setupMutationObservers(iframeChat) {
   Logger("Setting up observer...");
   // Access the contentDocument of the iframe
   const iframeDocument = iframeChat.contentDocument;
@@ -43,20 +57,15 @@ function setupMutationObserver(iframeChat) {
   if (iframeDocument) {
     iFrameGlobal = iframeDocument;
     // Target element to observe inside the iframe
-    const targetElementInsideIframe = iframeDocument.getElementById(USER_LIST_ID);
-
+    const userListElement = iframeDocument.getElementById(USER_LIST_ID);
+    const chatContainerElement = iframeDocument.querySelector('body'); // Yeah, it's that high up.
     // Options for the observer
-    const observerOptions = {
-      childList: true,
-      subtree: true,
-      // Add other options as needed
-    };
 
-    // Create a new MutationObserver with the callback function
-    const mutationObserver = new MutationObserver(handleMutations);
+    const userListMutationObserver = new MutationObserver(handleUserListMutations);
+    const chatContainerMutationObserver = new MutationObserver(handleChatboxMutations);
 
     // Set up initial state
-    const existingOnlines = targetElementInsideIframe.querySelectorAll('.' + USER_ITEM_CLASS)
+    const existingOnlines = userListElement.querySelectorAll('.' + USER_ITEM_CLASS)
     Logger("Checking for initial update if iFrame DOM is somehow done rendering.");
     if (existingOnlines) {
       existingOnlines.forEach((listItem) => {
@@ -70,8 +79,21 @@ function setupMutationObserver(iframeChat) {
         }
       });
     }
-    // Start observing the target element inside the iframe with the specified options
-    mutationObserver.observe(targetElementInsideIframe, observerOptions);
+    // Start observing.
+    userListMutationObserver.observe(
+      userListElement,
+      {
+        childList: true, // Just 1 level descendent nodes
+        subtree: false, // We don't want updates on time changes or button updates
+      }
+    );
+    chatContainerMutationObserver.observe(
+      chatContainerElement,
+      {
+        childList: true,
+        subtree: false,
+      }
+    )
   } else {
     console.error('Unable to access iframe contentDocument.');
   }
@@ -98,21 +120,14 @@ function initExtension() {
   const chatIframe = document.getElementById(IFRAME_ID);
   if (chatIframe) {
     // Set up the MutationObserver for the iframe
-    setupMutationObserver(chatIframe);
-    addClearButton(chatIframe);
-    addChatObjectShims();
+    setupMutationObservers(chatIframe);
+    addResetButton(chatIframe);
   } else {
     console.error('Chat iframe element not found.');
   }
 }
 
-// This is where stuff is most likely to break
-function addChatObjectShims() {
-  Logger("Registering Chat Shims");
-  // Nothing ATM
-}
-
-function addClearButton(iframe) {
+function addResetButton(iframe) {
   if (iframe.contentDocument) {
     const newBtn = document.createElement('button');
     newBtn.classList.add('btn', 'btn-danger');
@@ -128,7 +143,6 @@ function maybeAddNewButton(parentElement) {
     return; // Don't add again
   }
   const username = usernameFromListItem(parentElement);
-  const userVal = getUserVal(username);
   const btnCont = document.createElement('div');
   const btnY = document.createElement('button');
   const btnN = document.createElement('button');
@@ -167,6 +181,36 @@ function maybeAddNewButton(parentElement) {
   btnCont.appendChild(btnN);
   btnCont.classList.add(CTRL_CLASS);
   parentElement.appendChild(btnCont);
+}
+
+function maybeAddRotateButton(chatWindow) {
+  if (chatWindow.querySelector('.' + CTRL_CLASS)) {
+    return; // Don't add again
+  }
+  const btnRotate = document.createElement('button');
+  btnRotate.style.float = 'right';
+  btnRotate.style.fontSize = '0.7em';
+  btnRotate.style.margin = '0 2px';
+  btnRotate.style.padding = '0 2px';
+  btnRotate.style.position = 'relative';
+  btnRotate.style.border = '1px solid #DDD';
+  btnRotate.style.top = '2px';
+  btnRotate.style.height = '15px';
+  btnRotate.onclick = function(e) {
+    e.stopPropagation();
+    const vid = chatWindow.querySelector('video');
+    if (vid) {
+      if (vid.style.transform) {
+        vid.style.transform = null;
+      } else {
+        vid.style.transform = 'rotate(180deg)';
+      }
+    }
+    return false;
+  }
+  btnRotate.textContent = 'Rotate';
+  btnRotate.classList.add(CTRL_CLASS);
+  chatWindow.querySelector('.' + CHAT_HEADER_CLASS).appendChild(btnRotate);
 }
 
 function usernameToDataKey(username) {
