@@ -1,0 +1,20 @@
+{
+  "description": "Adds useful functionality to Bateworld's cams",
+  "manifest_version": 2,
+  "name": "Better BW VidChat",
+  "version": "1.0",
+  "homepage_url": "https://twitter.com/bravodelta9",
+  "icons": {
+    "48": "icons/icon-48.png"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://bateworld.com/html5-chat/chatroom*"
+      ],
+      "js": [
+        "better-bw-vidchat.js"
+      ]
+    }
+  ]
+}
