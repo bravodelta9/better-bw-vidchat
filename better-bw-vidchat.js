@@ -48,6 +48,135 @@ function handleChatboxMutations(mutations) {
   });
 }
 
+function getMainChatElementId(topLevelElement) {
+  const el = topLevelElement.querySelectorAll('.tab-content');
+  if (!el || el.length === 0 || el[0].childNodes.length === 0) {
+    return null;
+  }
+  return el[0].childNodes[0].id;
+}
+
+function findHasCam(username) {
+  const users = iFrameGlobal.querySelectorAll('.online-user-item[data-username="' + username + '"]');
+  if (users) {
+    // Convert because NodeList is not Array
+    const userArray = Array.from(users);
+    return userArray.some((el) => {
+      return el.getAttribute('data-webcam') === "true";
+    });
+  }
+  return false;
+}
+
+// For the actual text chat main tab
+function handleChatMutations(mutations) {
+  mutations.forEach((mutation) => {
+    if (mutation.type === 'childList') {
+      mutation.addedNodes.forEach((addedNode) => {
+        if (!addedNode.classList) {
+          return;
+        }
+        if (addedNode.classList.contains('webcamRequested')) {
+          try {
+            const button = addedNode.querySelector('button.acceptBtn');
+            if (button) {
+              const username = button.getAttribute('data-username');
+              console.log("Request from " + username);
+              const hasCam = findHasCam(username);
+              if (hasCam) {
+                console.log("User " + username + " has cam");
+                addedNode.style.border = "1px solid green";
+              } else {
+                console.log("User " + username + " does not have cam");
+                addedNode.style.border = "1px dotted red";
+              }
+              const val = getUserVal(username);
+              if (val) {
+                updateRow(addedNode, val);
+              }
+            }
+          } catch (err) {
+            console.warn("Failed shit", err.message);
+          }
+        }
+        if (addedNode.classList.contains("webcamOpened")) {
+          try {
+            const content = addedNode.querySelector('.watchCam').textContent;
+            const matches = new RegExp(/User (\w+)/gi).exec(content);
+            const username = matches[1];
+            const val = getUserVal(username);
+            if (val) {
+              updateRow(addedNode, val);
+            }
+          } catch (err) {
+            console.warn("failed to get username from webcam opened message: " + content);
+          }
+
+        } else if (addedNode.classList.contains("message")) {
+
+        }
+      })
+    }
+  });
+}
+
+let globalChatTabInitiationObserver;
+
+function initTextChatMutationObserver() {
+  const chatMutationObserver = new MutationObserver(handleChatMutations);
+  const chatElementId = getMainChatElementId(iFrameGlobal);
+  if (chatElementId) {
+    if (globalChatTabInitiationObserver) {
+      // Kill observer if it exists
+      console.log("disconnecting the listener for text chat");
+      globalChatTabInitiationObserver.disconnect();
+    }
+    const chatElement = iFrameGlobal.getElementById(chatElementId);
+    chatMutationObserver.observe(
+      chatElement,
+      {
+        childList: true,
+        subtree: false,
+      }
+    );
+  } else {
+    console.log("no chat yet? try reloading.");
+  }
+}
+function handleChatInitializeMutation(mutations) {
+  mutations.forEach((mutation) => {
+    // Check if the mutation involves changes to the child nodes
+    if (mutation.type === 'childList') {
+      // Iterate through added nodes
+      mutation.addedNodes.forEach((addedNode) => {
+        if (addedNode.nodeType !== Node.ELEMENT_NODE) {
+          console.log("Mutation detected that was not a node element delta");
+          return;
+        }
+        if (addedNode.querySelector('.tab-pane') || addedNode.id.startsWith("room_")) {
+          console.log("Oh is that chat?");
+          initTextChatMutationObserver();
+        } else {
+          console.log("Still no text chat...");
+        }
+      });
+    }
+  });
+}
+
+/** Because they don't appear right away */
+function setupChatWindowHandlers(iframeDocument) {
+  globalChatTabInitiationObserver = new MutationObserver(handleChatInitializeMutation);
+  const textChatContainerElement = iframeDocument.querySelector('#chatContainer #tabs .tab-content');
+  globalChatTabInitiationObserver.observe(
+    textChatContainerElement,
+    {
+      childList: true,
+      subtree: false,
+    }
+  );
+}
+
 // Function to set up MutationObserver for the iframe
 function setupMutationObservers(iframeChat) {
   Logger("Setting up observer...");
@@ -63,6 +192,15 @@ function setupMutationObservers(iframeChat) {
 
     const userListMutationObserver = new MutationObserver(handleUserListMutations);
     const chatContainerMutationObserver = new MutationObserver(handleChatboxMutations);
+
+    const chatElementId = getMainChatElementId(iframeDocument);
+    if (chatElementId) {
+      console.log("chat is already loaded");
+      initTextChatMutationObserver();
+    } else {
+      console.log("Chat hasn't loaded yet- setting up the waiter.");
+      setupChatWindowHandlers(iframeDocument);
+    }
 
     // Set up initial state
     const existingOnlines = userListElement.querySelectorAll('.' + USER_ITEM_CLASS)
@@ -87,13 +225,14 @@ function setupMutationObservers(iframeChat) {
         subtree: false, // We don't want updates on time changes or button updates
       }
     );
+    // For the video windows
     chatContainerMutationObserver.observe(
       chatContainerElement,
       {
         childList: true,
         subtree: false,
       }
-    )
+    );
   } else {
     console.error('Unable to access iframe contentDocument.');
   }
