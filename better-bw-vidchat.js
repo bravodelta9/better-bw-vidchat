@@ -78,17 +78,18 @@ function handleChatMutations(mutations) {
         }
         if (addedNode.classList.contains('webcamRequested')) {
           try {
+            // TODO: Figure out why this is tweaking out the chat scroll?
             const button = addedNode.querySelector('button.acceptBtn');
             if (button) {
               const username = button.getAttribute('data-username');
               console.log("Request from " + username);
               const hasCam = findHasCam(username);
               if (hasCam) {
-                console.log("User " + username + " has cam");
-                addedNode.style.border = "1px solid green";
+                console.log("User " + username + " has cam on");
+                addedNode.style.border = "2px dotted green";
               } else {
-                console.log("User " + username + " does not have cam");
-                addedNode.style.border = "1px dotted red";
+                console.log("User " + username + " does not have cam on");
+                addedNode.style.border = "2px dotted red";
               }
               const val = getUserVal(username);
               if (val) {
@@ -96,7 +97,7 @@ function handleChatMutations(mutations) {
               }
             }
           } catch (err) {
-            console.warn("Failed shit", err.message);
+            console.warn("Failed to mutate text chat DOM", err.message);
           }
         }
         if (addedNode.classList.contains("webcamOpened")) {
