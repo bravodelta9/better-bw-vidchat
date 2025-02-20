@@ -77,6 +77,7 @@ function handleChatMutations(mutations) {
           return;
         }
         if (addedNode.classList.contains('webcamRequested')) {
+          // Highlight webcam requests
           try {
             // TODO: Figure out why this is tweaking out the chat scroll?
             const button = addedNode.querySelector('button.acceptBtn');
@@ -86,20 +87,32 @@ function handleChatMutations(mutations) {
               const hasCam = findHasCam(username);
               if (hasCam) {
                 console.log("User " + username + " has cam on");
-                addedNode.style.border = "2px dotted green";
+                addedNode.style.borderLeft = "5px solid green";
               } else {
                 console.log("User " + username + " does not have cam on");
-                addedNode.style.border = "2px dotted red";
+                addedNode.style.borderLeft = "5px solid red";
               }
               const val = getUserVal(username);
               if (val) {
+                // Highlight row for like/dislike
                 updateRow(addedNode, val);
+              }
+              // Linkify asks for vid chat thing so I can see their profiles before accepting if I want
+              // TODO: TEST ME!
+              for (const childNode of addedNode.childNodes) {
+                if (childNode.nodeType === Node.TEXT_NODE && childNode.textContent.indexOf(username) > -1) {
+                  const newSpan = document.createElement('span');
+                  newSpan.innerHTML = linkifyChatUserRequest(username, childNode.textContent)
+                  childNode.replaceWith(newSpan);
+                  break;
+                }
               }
             }
           } catch (err) {
             console.warn("Failed to mutate text chat DOM", err.message);
           }
         }
+        // Updates row color for `<name> has opened his webcam` notifications
         if (addedNode.classList.contains("webcamOpened")) {
           try {
             const content = addedNode.querySelector('.watchCam').textContent;
@@ -114,7 +127,7 @@ function handleChatMutations(mutations) {
           }
 
         } else if (addedNode.classList.contains("message")) {
-
+          console.log('AddedNode message',  addedNode);
         }
       })
     }
@@ -384,6 +397,13 @@ function Logger(log) {
   if (DEBUGGING_ON) {
     console.log(log);
   }
+}
+
+function linkifyChatUserRequest(username, innerHTML) {
+  const unCleansed = username.replace(/[^\w\-]/i, ''); // for HTML inject safety
+  const unUrl = encodeURIComponent(username);
+  const linkHTML = `<a href="https://bateworld.com/profile.php?user=${unUrl}" target="_blank">${ununCleansedClean}</a>`
+  return innerHTML.replace(username, linkHTML);
 }
 
 function clearAll() {
