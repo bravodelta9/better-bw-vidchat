@@ -181,6 +181,7 @@ function handleChatInitializeMutation(mutations) {
 /** Because they don't appear right away */
 function setupChatWindowHandlers(iframeDocument) {
   globalChatTabInitiationObserver = new MutationObserver(handleChatInitializeMutation);
+  // Observe below is throwing error when iframe isn't ready
   const textChatContainerElement = iframeDocument.querySelector('#chatContainer #tabs .tab-content');
   globalChatTabInitiationObserver.observe(
     textChatContainerElement,
@@ -253,7 +254,13 @@ function setupMutationObservers(iframeChat) {
 };
 
 function isIframeReady(iframe) {
-  return iframe.contentDocument && iframe.contentDocument.readyState === 'complete';
+  if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') {
+	  try {
+		  return iframe.contentDocument.querySelector('#chatContainer #tabs .tab-content') !== null
+	  } catch (err) {
+		  return false;
+	  }
+  }
 };
 
 function awaitIframeReadyInit() {
@@ -264,7 +271,7 @@ function awaitIframeReadyInit() {
   } else {
     // If the iframe is not ready, check again after a short delay
     Logger('iFrame is not yet ready, waiting to try again.');
-    setTimeout(awaitIframeReadyInit, 200);
+    setTimeout(awaitIframeReadyInit, 500);
   }
 };
 
